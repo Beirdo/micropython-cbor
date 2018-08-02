@@ -1,11 +1,13 @@
 #!/bin/sh -x
 
-python -m cbor.tests.test_cbor
-python -m cbor.tests.test_objects
-python -m cbor.tests.test_usage
-python -m cbor.tests.test_vectors
+MICROPYTHON_PATH=''
 
-#python cbor/tests/test_cbor.py
-#python cbor/tests/test_objects.py
-#python cbor/tests/test_usage.py
-#python cbor/tests/test_vectors.py
+micropython -m cbor.tests.test_cbor
+micropython -m cbor.tests.test_objects
+micropython -m cbor.tests.test_usage
+micropython -m cbor.tests.test_vectors
+
+#micropython cbor/tests/test_cbor.py
+#micropython cbor/tests/test_objects.py
+#micropython cbor/tests/test_usage.py
+#micropython cbor/tests/test_vectors.py
