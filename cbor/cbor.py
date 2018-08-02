@@ -1,20 +1,10 @@
 #!python
 # -*- Python -*-
 
-import datetime
-import re
-import struct
-import sys
-
-_IS_PY3 = sys.version_info[0] >= 3
-
-if _IS_PY3:
-    from io import BytesIO as StringIO
-else:
-    try:
-        from cStringIO import StringIO
-    except:
-        from StringIO import StringIO
+import utime
+import ure
+import ustruct
+from uio import BytesIO as StringIO
 
 
 CBOR_TYPE_MASK = 0xE0  # top 3 bits
@@ -65,7 +55,7 @@ CBOR_TAG_REGEX = 35
 CBOR_TAG_MIME = 36 # following text is MIME message, headers, separators and all
 CBOR_TAG_CBOR_FILEHEADER = 55799 # can open a file with 0xd9d9f7
 
-_CBOR_TAG_BIGNUM_BYTES = struct.pack('B', CBOR_TAG | CBOR_TAG_BIGNUM)
+_CBOR_TAG_BIGNUM_BYTES = ustruct.pack('B', CBOR_TAG | CBOR_TAG_BIGNUM)
 
 
 def dumps_int(val):
@@ -73,70 +63,58 @@ def dumps_int(val):
     if val >= 0:
         # CBOR_UINT is 0, so I'm lazy/efficient about not OR-ing it in.
         if val <= 23:
-            return struct.pack('B', val)
+            return ustruct.pack('B', val)
         if val <= 0x0ff:
-            return struct.pack('BB', CBOR_UINT8_FOLLOWS, val)
+            return ustruct.pack('BB', CBOR_UINT8_FOLLOWS, val)
         if val <= 0x0ffff:
-            return struct.pack('!BH', CBOR_UINT16_FOLLOWS, val)
+            return ustruct.pack('!BH', CBOR_UINT16_FOLLOWS, val)
         if val <= 0x0ffffffff:
-            return struct.pack('!BI', CBOR_UINT32_FOLLOWS, val)
+            return ustruct.pack('!BI', CBOR_UINT32_FOLLOWS, val)
         if val <= 0x0ffffffffffffffff:
-            return struct.pack('!BQ', CBOR_UINT64_FOLLOWS, val)
+            return ustruct.pack('!BQ', CBOR_UINT64_FOLLOWS, val)
         outb = _dumps_bignum_to_bytearray(val)
         return _CBOR_TAG_BIGNUM_BYTES + _encode_type_num(CBOR_BYTES, len(outb)) + outb
     val = -1 - val
     return _encode_type_num(CBOR_NEGINT, val)
 
 
-if _IS_PY3:
-    def _dumps_bignum_to_bytearray(val):
-        out = []
-        while val > 0:
-            out.insert(0, val & 0x0ff)
-            val = val >> 8
-        return bytes(out)
-else:
-    def _dumps_bignum_to_bytearray(val):
-        out = []
-        while val > 0:
-            out.insert(0, chr(val & 0x0ff))
-            val = val >> 8
-        return b''.join(out)
+def _dumps_bignum_to_bytearray(val):
+    out = []
+    while val > 0:
+        out.insert(0, val & 0x0ff)
+        val = val >> 8
+    return bytes(out)
 
 
 def dumps_float(val):
-    return struct.pack("!Bd", CBOR_FLOAT64, val)
+    return ustruct.pack("!Bd", CBOR_FLOAT64, val)
 
 
-_CBOR_TAG_NEGBIGNUM_BYTES = struct.pack('B', CBOR_TAG | CBOR_TAG_NEGBIGNUM)
+_CBOR_TAG_NEGBIGNUM_BYTES = ustruct.pack('B', CBOR_TAG | CBOR_TAG_NEGBIGNUM)
 
 
 def _encode_type_num(cbor_type, val):
     """For some CBOR primary type [0..7] and an auxiliary unsigned number, return CBOR encoded bytes"""
     assert val >= 0
     if val <= 23:
-        return struct.pack('B', cbor_type | val)
+        return ustruct.pack('B', cbor_type | val)
     if val <= 0x0ff:
-        return struct.pack('BB', cbor_type | CBOR_UINT8_FOLLOWS, val)
+        return ustruct.pack('BB', cbor_type | CBOR_UINT8_FOLLOWS, val)
     if val <= 0x0ffff:
-        return struct.pack('!BH', cbor_type | CBOR_UINT16_FOLLOWS, val)
+        return ustruct.pack('!BH', cbor_type | CBOR_UINT16_FOLLOWS, val)
     if val <= 0x0ffffffff:
-        return struct.pack('!BI', cbor_type | CBOR_UINT32_FOLLOWS, val)
+        return ustruct.pack('!BI', cbor_type | CBOR_UINT32_FOLLOWS, val)
     if (((cbor_type == CBOR_NEGINT) and (val <= 0x07fffffffffffffff)) or
         ((cbor_type != CBOR_NEGINT) and (val <= 0x0ffffffffffffffff))):
-        return struct.pack('!BQ', cbor_type | CBOR_UINT64_FOLLOWS, val)
+        return ustruct.pack('!BQ', cbor_type | CBOR_UINT64_FOLLOWS, val)
     if cbor_type != CBOR_NEGINT:
         raise Exception("value too big for CBOR unsigned number: {0!r}".format(val))
     outb = _dumps_bignum_to_bytearray(val)
     return _CBOR_TAG_NEGBIGNUM_BYTES + _encode_type_num(CBOR_BYTES, len(outb)) + outb
 
 
-if _IS_PY3:
-    def _is_unicode(val):
-        return isinstance(val, str)
-else:
-    def _is_unicode(val):
-        return isinstance(val, unicode)
+def _is_unicode(val):
+    return isinstance(val, str)
 
 
 def dumps_string(val, is_text=None, is_bytes=None):
@@ -155,61 +133,40 @@ def dumps_array(arr, sort_keys=False):
     return head + b''.join(parts)
 
 
-if _IS_PY3:
-    def dumps_dict(d, sort_keys=False):
-        head = _encode_type_num(CBOR_MAP, len(d))
-        parts = [head]
-        if sort_keys:
-            for k in sorted(d.keys()):
-                v = d[k]
-                parts.append(dumps(k, sort_keys=sort_keys))
-                parts.append(dumps(v, sort_keys=sort_keys))
-        else:
-            for k,v in d.items():
-                parts.append(dumps(k, sort_keys=sort_keys))
-                parts.append(dumps(v, sort_keys=sort_keys))
-        return b''.join(parts)
-else:
-    def dumps_dict(d, sort_keys=False):
-        head = _encode_type_num(CBOR_MAP, len(d))
-        parts = [head]
-        if sort_keys:
-            for k in sorted(d.iterkeys()):
-                v = d[k]
-                parts.append(dumps(k, sort_keys=sort_keys))
-                parts.append(dumps(v, sort_keys=sort_keys))
-        else:
-            for k,v in d.iteritems():
-                parts.append(dumps(k, sort_keys=sort_keys))
-                parts.append(dumps(v, sort_keys=sort_keys))
-        return b''.join(parts)
+def dumps_dict(d, sort_keys=False):
+    head = _encode_type_num(CBOR_MAP, len(d))
+    parts = [head]
+    if sort_keys:
+        for k in sorted(d.keys()):
+            v = d[k]
+            parts.append(dumps(k, sort_keys=sort_keys))
+            parts.append(dumps(v, sort_keys=sort_keys))
+    else:
+        for k,v in d.items():
+            parts.append(dumps(k, sort_keys=sort_keys))
+            parts.append(dumps(v, sort_keys=sort_keys))
+    return b''.join(parts)
 
 
 def dumps_bool(b):
     if b:
-        return struct.pack('B', CBOR_TRUE)
-    return struct.pack('B', CBOR_FALSE)
+        return ustruct.pack('B', CBOR_TRUE)
+    return ustruct.pack('B', CBOR_FALSE)
 
 
 def dumps_tag(t, sort_keys=False):
     return _encode_type_num(CBOR_TAG, t.tag) + dumps(t.value, sort_keys=sort_keys)
-    
 
-if _IS_PY3:
-    def _is_stringish(x):
-        return isinstance(x, (str, bytes))
-    def _is_intish(x):
-        return isinstance(x, int)
-else:
-    def _is_stringish(x):
-        return isinstance(x, (str, basestring, bytes, unicode))
-    def _is_intish(x):
-        return isinstance(x, (int, long))
+
+def _is_stringish(x):
+    return isinstance(x, (str, bytes))
+def _is_intish(x):
+    return isinstance(x, int)
 
 
 def dumps(ob, sort_keys=False):
     if ob is None:
-        return struct.pack('B', CBOR_NULL)
+        return ustruct.pack('B', CBOR_NULL)
     if isinstance(ob, bool):
         return dumps_bool(ob)
     if _is_stringish(ob):
@@ -282,19 +239,19 @@ def _tag_aux(fp, tb):
         aux = tag_aux
     elif tag_aux == CBOR_UINT8_FOLLOWS:
         data = fp.read(1)
-        aux = struct.unpack_from("!B", data, 0)[0]
+        aux = ustruct.unpack_from("!B", data, 0)[0]
         bytes_read += 1
     elif tag_aux == CBOR_UINT16_FOLLOWS:
         data = fp.read(2)
-        aux = struct.unpack_from("!H", data, 0)[0]
+        aux = ustruct.unpack_from("!H", data, 0)[0]
         bytes_read += 2
     elif tag_aux == CBOR_UINT32_FOLLOWS:
         data = fp.read(4)
-        aux = struct.unpack_from("!I", data, 0)[0]
+        aux = ustruct.unpack_from("!I", data, 0)[0]
         bytes_read += 4
     elif tag_aux == CBOR_UINT64_FOLLOWS:
         data = fp.read(8)
-        aux = struct.unpack_from("!Q", data, 0)[0]
+        aux = ustruct.unpack_from("!Q", data, 0)[0]
         bytes_read += 8
     else:
         assert tag_aux == CBOR_VAR_FOLLOWS, "bogus tag {0:02x}".format(tb)
@@ -335,41 +292,23 @@ def _loads_var_map(fp, limit, depth, returntags, bytes_read):
     return (ob, bytes_read + 1)
 
 
-if _IS_PY3:
-    def _loads_array(fp, limit, depth, returntags, aux, bytes_read):
-        ob = []
-        for i in range(aux):
-            subob, subpos = _loads(fp)
-            bytes_read += subpos
-            ob.append(subob)
-        return ob, bytes_read
-    def _loads_map(fp, limit, depth, returntags, aux, bytes_read):
-        ob = {}
-        for i in range(aux):
-            subk, subpos = _loads(fp)
-            bytes_read += subpos
-            subv, subpos = _loads(fp)
-            bytes_read += subpos
-            ob[subk] = subv
-        return ob, bytes_read
-else:
-    def _loads_array(fp, limit, depth, returntags, aux, bytes_read):
-        ob = []
-        for i in xrange(aux):
-            subob, subpos = _loads(fp)
-            bytes_read += subpos
-            ob.append(subob)
-        return ob, bytes_read
-    def _loads_map(fp, limit, depth, returntags, aux, bytes_read):
-        ob = {}
-        for i in xrange(aux):
-            subk, subpos = _loads(fp)
-            bytes_read += subpos
-            subv, subpos = _loads(fp)
-            bytes_read += subpos
-            ob[subk] = subv
-        return ob, bytes_read
-        
+def _loads_array(fp, limit, depth, returntags, aux, bytes_read):
+    ob = []
+    for i in range(aux):
+        subob, subpos = _loads(fp)
+        bytes_read += subpos
+        ob.append(subob)
+    return ob, bytes_read
+def _loads_map(fp, limit, depth, returntags, aux, bytes_read):
+    ob = {}
+    for i in range(aux):
+        subk, subpos = _loads(fp)
+        bytes_read += subpos
+        subv, subpos = _loads(fp)
+        bytes_read += subpos
+        ob[subk] = subv
+    return ob, bytes_read
+
 
 def _loads(fp, limit=None, depth=0, returntags=False):
     "return (object, bytes read)"
@@ -381,10 +320,10 @@ def _loads(fp, limit=None, depth=0, returntags=False):
     return _loads_tb(fp, tb, limit, depth, returntags)
 
 def _loads_tb(fp, tb, limit=None, depth=0, returntags=False):
-    # Some special cases of CBOR_7 best handled by special struct.unpack logic here
+    # Some special cases of CBOR_7 best handled by special ustruct.unpack logic here
     if tb == CBOR_FLOAT16:
         data = fp.read(2)
-        hibyte, lowbyte = struct.unpack_from("BB", data, 0)
+        hibyte, lowbyte = ustruct.unpack_from("BB", data, 0)
         exp = (hibyte >> 2) & 0x1F
         mant = ((hibyte & 0x03) << 8) | lowbyte
         if exp == 0:
@@ -401,11 +340,11 @@ def _loads_tb(fp, tb, limit=None, depth=0, returntags=False):
         return (val, 3)
     elif tb == CBOR_FLOAT32:
         data = fp.read(4)
-        pf = struct.unpack_from("!f", data, 0)
+        pf = ustruct.unpack_from("!f", data, 0)
         return (pf[0], 5)
     elif tb == CBOR_FLOAT64:
         data = fp.read(8)
-        pf = struct.unpack_from("!d", data, 0)
+        pf = ustruct.unpack_from("!d", data, 0)
         return (pf[0], 9)
 
     tag, tag_aux, aux, bytes_read = _tag_aux(fp, tb)
@@ -462,8 +401,6 @@ def loads_bytes(fp, aux, btag=CBOR_BYTES):
     total_bytes_read = 0
     while True:
         tb = fp.read(1)[0]
-        if not _IS_PY3:
-            tb = ord(tb)
         if tb == CBOR_BREAK:
             total_bytes_read += 1
             break
@@ -475,20 +412,12 @@ def loads_bytes(fp, aux, btag=CBOR_BYTES):
     return (b''.join(chunklist), total_bytes_read)
 
 
-if _IS_PY3:
-    def _bytes_to_biguint(bs):
-        out = 0
-        for ch in bs:
-            out = out << 8
-            out = out | ch
-        return out
-else:
-    def _bytes_to_biguint(bs):
-        out = 0
-        for ch in bs:
-            out = out << 8
-            out = out | ord(ch)
-        return out
+def _bytes_to_biguint(bs):
+    out = 0
+    for ch in bs:
+        out = out << 8
+        out = out | ch
+    return out
 
 
 def tagify(ob, aux):
@@ -499,12 +428,12 @@ def tagify(ob, aux):
         # TODO: parse RFC3339 date string
         pass
     if aux == CBOR_TAG_DATE_ARRAY:
-        return datetime.datetime.utcfromtimestamp(ob)
+        return utime.localtime(ob)
     if aux == CBOR_TAG_BIGNUM:
         return _bytes_to_biguint(ob)
     if aux == CBOR_TAG_NEGBIGNUM:
         return -1 - _bytes_to_biguint(ob)
     if aux == CBOR_TAG_REGEX:
         # Is this actually a good idea? Should we just return the tag and the raw value to the user somehow?
-        return re.compile(ob)
+        return ure.compile(ob)
     return Tag(aux, ob)

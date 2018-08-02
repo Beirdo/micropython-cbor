@@ -5,31 +5,17 @@ Test CBOR implementation against common "test vectors" set from
 https://github.com/cbor/test-vectors/
 """
 
-import base64
-import json
-import logging
+import ubinascii
+import ujson
 import math
-import os
-import sys
-import unittest
+import uos
 
 
-_IS_PY3 = sys.version_info[0] >= 3
 
 
-logger = logging.getLogger(__name__)
 
 
-#from cbor.cbor import dumps as pydumps
-from cbor.cbor import loads as pyloads
-try:
-    #from cbor._cbor import dumps as cdumps
-    from cbor._cbor import loads as cloads
-except ImportError:
-    # still test what we can without C fast mode
-    logger.warn('testing without C accelerated CBOR', exc_info=True)
-    #cdumps, cloads = None, None
-    cloads = None
+from cbor.cbor import loads
 from cbor import Tag
 
 
@@ -56,87 +42,82 @@ _EXPECT_EXCEPTION = set(['f0', 'f818', 'f8ff'])
 
 
 def _check(row, decoded):
-    cbdata = base64.b64decode(row['cbor'])
-    if cloads is not None:
-        cb = cloads(cbdata)
-        if cb != decoded:
-            anyerr = True
-            sys.stderr.write('expected {0!r} got {1!r} c failed to decode cbor {2}\n'.format(decoded, cb, base64.b16encode(cbdata)))
-
-    cb = pyloads(cbdata)
+    cbdata = ubinascii.a2b_base64(row['cbor'])
+    cb = loads(cbdata)
     if cb != decoded:
         anyerr = True
-        sys.stderr.write('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(decoded, cb, base64.b16encode(cbdata)))
+        print('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(decoded, cb, ubinascii.hexlify(cbdata)))
+
+    return anyerr
 
 
 def _check_foo(row, checkf):
-    cbdata = base64.b64decode(row['cbor'])
-    if cloads is not None:
-        cb = cloads(cbdata)
-        if not checkf(cb):
-            anyerr = True
-            sys.stderr.write('expected {0!r} got {1!r} c failed to decode cbor {2}\n'.format(decoded, cb, base64.b16encode(cbdata)))
-
-    cb = pyloads(cbdata)
+    cbdata = ubinascii.a2b_base64(row['cbor'])
+    cb = loads(cbdata)
     if not checkf(cb):
         anyerr = True
-        sys.stderr.write('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(decoded, cb, base64.b16encode(cbdata)))
+        print('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(checkf, cb, ubinascii.hexlify(cbdata)))
+
+    return anyerr
 
 
-class TestVectors(unittest.TestCase):
+class TestVectors():
         def test_vectors(self):
-            here = os.path.dirname(__file__)
-            jf = os.path.abspath(os.path.join(here, '../../../test-vectors/appendix_a.json'))
-            if not os.path.exists(jf):
-                logging.warning('cannot find test-vectors/appendix_a.json, tried: %r', jf)
-                return
+            jf = 'test-vectors/appendix_a.json'
 
-            if _IS_PY3:
+            try:
                 testfile = open(jf, 'r')
-                tv = json.load(testfile)
-            else:
-                testfile = open(jf, 'rb')
-                tv = json.load(testfile)
+            except:
+                print('Error: cannot open ' + jf)
+                raise
+
+            try:
+                tv = ujson.load(testfile)
+            except:
+                print('Error: cannot load ' + jf + ' using ujson.load().')
+                raise
+
             anyerr = False
             for row in tv:
                 rhex = row.get('hex')
                 if 'decoded' in row:
                     decoded = row['decoded']
-                    _check(row, decoded)
+                    status = _check(row, decoded)
+                    if(status):
+                        anyerr = True
                     continue
                 elif 'diagnostic' in row:
                     diag = row['diagnostic']
                     checkf = _DIAGNOSTIC_TESTS.get(diag)
                     if checkf is not None:
-                        _check_foo(row, checkf)
+                        status = _check_foo(row, checkf)
+                        if(status):
+                            anyerr = True
                         continue
 
                 # variously verbose log of what we're not testing:
-                cbdata = base64.b64decode(row['cbor'])
+                cbdata = ubinascii.a2b_base64(row['cbor'])
                 try:
-                    pd = pyloads(cbdata)
+                    pd = loads(cbdata)
                 except:
                     if rhex and (rhex in _EXPECT_EXCEPTION):
                         pass
                     else:
-                        logging.error('failed to py load hex=%s diag=%r', rhex, row.get('diagnostic'), exc_info=True)
+                        print('failed to py load hex=%s diag=%r', rhex, row.get('diagnostic'), exc_info=True)
                     pd = ''
                 cd = None
-                if cloads is not None:
-                    try:
-                        cd = cloads(cbdata)
-                    except:
-                        if rhex and (rhex in _EXPECT_EXCEPTION):
-                            pass
-                        else:
-                            logging.error('failed to c load hex=%s diag=%r', rhex, row.get('diagnostic'), exc_info=True)
-                        cd = ''
-                logging.warning('skipping hex=%s diag=%r py=%s c=%s', rhex, row.get('diagnostic'), pd, cd)
+                print('skipping hex=%s diag=%r py=%s c=%s', rhex, row.get('diagnostic'), pd, cd)
+
             testfile.close()
 
             assert not anyerr
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    unit_test = TestVectors()
+
+    try:
+        unit_test.test_vectors()
+        print('test_vectors(): OK.')
+    except:
+        print('test_vectors(): NOK.')

@@ -1,13 +1,20 @@
-#!/bin/sh -x
+#!/bin/sh
 
 MICROPYTHON_PATH=''
 
-micropython -m cbor.tests.test_cbor
-micropython -m cbor.tests.test_objects
-micropython -m cbor.tests.test_usage
-micropython -m cbor.tests.test_vectors
+echo '*******test_cbor********'
+$MICROPYTHON_PATH/micropython -m cbor.tests.test_cbor
 
-#micropython cbor/tests/test_cbor.py
-#micropython cbor/tests/test_objects.py
-#micropython cbor/tests/test_usage.py
-#micropython cbor/tests/test_vectors.py
+echo '\n'
+echo '******test_objects******'
+$MICROPYTHON_PATH/micropython -m cbor.tests.test_objects
+
+echo '\n'
+echo '******test_vectors******'
+echo '**Currently, this fails because micropython implementation of json does    **'
+echo '**not decode test vectors of https://github.com/cbor/test-vectors properly.**'
+$MICROPYTHON_PATH/micropython -m cbor.tests.test_vectors
+
+#$MICROPYTHON_PATH/icropython cbor/tests/test_cbor.py
+#$MICROPYTHON_PATH/icropython cbor/tests/test_objects.py
+#$MICROPYTHON_PATH/icropython cbor/tests/test_vectors.py

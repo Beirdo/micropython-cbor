@@ -1,11 +1,5 @@
-try:
-    # try C library _cbor.so
-    from ._cbor import loads, dumps, load, dump
-except:
-    # fall back to 100% python implementation
-    from .cbor import loads, dumps, load, dump
-
-from .cbor import Tag, CBOR_TAG_CBOR, _IS_PY3
+from .cbor import loads, dumps, load, dump
+from .cbor import Tag, CBOR_TAG_CBOR
 
 
 class ClassTag(object):
@@ -54,10 +48,7 @@ class TagMapper(object):
             # can't do this in Python 2.6:
             #return {k:self.encode(v) for k,v in obj.iteritems()}
             out = {}
-            if _IS_PY3:
-                items = obj.items()
-            else:
-                items = obj.iteritems()
+            items = obj.items()
             for k,v in items:
                 out[k] = self.encode(v)
             return out
@@ -81,10 +72,7 @@ class TagMapper(object):
             return obj
         if isinstance(obj, dict):
             # update in place
-            if _IS_PY3:
-                items = obj.items()
-            else:
-                items = obj.iteritems()
+            items = obj.items()
             for k,v in items:
                 # assume key is a primitive
                 obj[k] = self.decode(v)

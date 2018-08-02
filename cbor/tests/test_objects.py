@@ -1,14 +1,10 @@
-import base64
+import ubinascii
 import sys
-import unittest
 
 
 from cbor.tagmap import ClassTag, TagMapper, Tag, UnknownTagException
 
-#try:
-from cbor.tests.test_cbor import TestPyPy, hexstr
-#except ImportError:
-#    from .test_cbor import TestPyPy, hexstr
+from cbor.tests.test_cbor import hexstr
 
 
 class SomeType(object):
@@ -40,17 +36,17 @@ known_tags = [
 ]
 
 
-class TestObjects(unittest.TestCase):
-    def setUp(self):
+class TestObjects():
+    def __init__(self):
         self.tx = TagMapper(known_tags)
 
     def _oso(self, ob):
         ser = self.tx.dumps(ob)
         try:
             o2 = self.tx.loads(ser)
-            assert ob == o2, '%r != %r from %s' % (ob, o2, base64.b16encode(ser))
+            assert ob == o2, '%r != %r from %s' % (ob, o2, ubinascii.hexlify(ser))
         except Exception as e:
-            sys.stderr.write('failure on buf len={0} {1!r} ob={2!r} {3!r}; {4}\n'.format(len(ser), hexstr(ser), ob, ser, e))
+            print('failure on buf len={0} {1!r} ob={2!r} {3!r}; {4}\n'.format(len(ser), hexstr(ser), ob, ser, e))
             raise
 
     def test_basic(self):
@@ -75,8 +71,32 @@ class TestObjects(unittest.TestCase):
             self._oso(Tag(1234, 'aoeu'))
         except UnknownTagException as ute:
             ok = True
-        ok = False
+        assert ok
 
 
 if __name__ == '__main__':
-  unittest.main()
+    unit_test = TestObjects()
+
+    try:
+        unit_test.test_basic()
+        print('test_basic(): OK.')
+    except:
+        print('test_basic(): NOK.')
+
+    try:
+        unit_test.test_unk_fail()
+        print('test_unk_fail(): OK.')
+    except:
+        print('test_unk_fail(): NOK.')
+
+    try:
+        unit_test.test_tag_passthrough()
+        print('test_tag_passthrough(): OK.')
+    except:
+        print('test_tag_passthrough(): NOK.')
+
+    try:
+        unit_test.test_unk_tag_fail()
+        print('test_unk_tag_fail(): OK.')
+    except:
+        print('test_unk_tag_fail(): NOK.')
