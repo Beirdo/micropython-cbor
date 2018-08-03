@@ -26,7 +26,6 @@ _DIAGNOSTIC_TESTS = {
     'NaN': math.isnan,
     'undefined': lambda x: x is None,
 
-    # TODO: parse into datetime.datetime()
     '0("2013-03-21T20:04:00Z")': lambda x: isinstance(x, Tag) and (x.tag == 0) and (x.value == '2013-03-21T20:04:00Z'),
 
     "h''": lambda x: x == b'',
@@ -42,21 +41,39 @@ _EXPECT_EXCEPTION = set(['f0', 'f818', 'f8ff'])
 
 
 def _check(row, decoded):
+    anyerr = False
     cbdata = ubinascii.a2b_base64(row['cbor'])
     cb = loads(cbdata)
     if cb != decoded:
         anyerr = True
-        print('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(decoded, cb, ubinascii.hexlify(cbdata)))
+        print('Expected {0!r} got {1!r}. Failed to decode CBOR {2}.\n'.format(cb, decoded, ubinascii.hexlify(cbdata)))
+
+    return anyerr
+
+
+def isclose(a, b, rel_tol=1e-9, abs_tol=0.0):
+    """Reimplementation of math.isclose() as it does not exist in Micropython."""
+    return abs(a-b) <= max( rel_tol * max(abs(a), abs(b)), abs_tol )
+
+
+def _check_float(row, decoded):
+    anyerr = False
+    cbdata = ubinascii.a2b_base64(row['cbor'])
+    cb = loads(cbdata)
+    if not isclose(cb, decoded):
+        anyerr = True
+        print('Expected {0!r} got {1!r}. Failed to decode CBOR {2}.\n'.format(cb, decoded, ubinascii.hexlify(cbdata)))
 
     return anyerr
 
 
 def _check_foo(row, checkf):
+    anyerr = False
     cbdata = ubinascii.a2b_base64(row['cbor'])
     cb = loads(cbdata)
     if not checkf(cb):
         anyerr = True
-        print('expected {0!r} got {1!r} py failed to decode cbor {2}\n'.format(checkf, cb, ubinascii.hexlify(cbdata)))
+        print('Expected {0!r} got {1!r}. Failed to decode CBOR {2}.\n'.format(cb, checkf, ubinascii.hexlify(cbdata)))
 
     return anyerr
 
@@ -68,7 +85,7 @@ class TestVectors():
             try:
                 testfile = open(jf, 'r')
             except:
-                print('Error: cannot open ' + jf)
+                print('Error: cannot open ' + jf + '.')
                 raise
 
             try:
@@ -82,7 +99,11 @@ class TestVectors():
                 rhex = row.get('hex')
                 if 'decoded' in row:
                     decoded = row['decoded']
-                    status = _check(row, decoded)
+
+                    if(type(decoded) is float):
+                        status = _check_float(row, decoded)
+                    else:
+                        status = _check(row, decoded)
                     if(status):
                         anyerr = True
                     continue
@@ -103,10 +124,10 @@ class TestVectors():
                     if rhex and (rhex in _EXPECT_EXCEPTION):
                         pass
                     else:
-                        print('failed to py load hex=%s diag=%r', rhex, row.get('diagnostic'), exc_info=True)
+                        print('Failed to load hex=' + str(rhex) + ' diag=' + str(row.get('diagnostic') + '.'))
                     pd = ''
                 cd = None
-                print('skipping hex=%s diag=%r py=%s c=%s', rhex, row.get('diagnostic'), pd, cd)
+                print('Skipping hex=' + str(rhex) + ' diag=' + str(row.get('diagnostic')) + ' py=' + str(pd) + ' c=' + str(cd) + '.')
 
             testfile.close()
 
