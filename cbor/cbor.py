@@ -7,53 +7,53 @@ import ustruct
 from uio import BytesIO as StringIO
 
 
-CBOR_TYPE_MASK = 0xE0  # top 3 bits
-CBOR_INFO_BITS = 0x1F  # low 5 bits
+CBOR_TYPE_MASK = const(0xE0)  # top 3 bits
+CBOR_INFO_BITS = const(0x1F)  # low 5 bits
 
 
-CBOR_UINT    = 0x00
-CBOR_NEGINT  = 0x20
-CBOR_BYTES   = 0x40
-CBOR_TEXT    = 0x60
-CBOR_ARRAY   = 0x80
-CBOR_MAP     = 0xA0
-CBOR_TAG     = 0xC0
-CBOR_7       = 0xE0  # float and other types
+CBOR_UINT    = const(0x00)
+CBOR_NEGINT  = const(0x20)
+CBOR_BYTES   = const(0x40)
+CBOR_TEXT    = const(0x60)
+CBOR_ARRAY   = const(0x80)
+CBOR_MAP     = const(0xA0)
+CBOR_TAG     = const(0xC0)
+CBOR_7       = const(0xE0)  # float and other types
 
-CBOR_UINT8_FOLLOWS  = 24  # 0x18
-CBOR_UINT16_FOLLOWS = 25  # 0x19
-CBOR_UINT32_FOLLOWS = 26  # 0x1a
-CBOR_UINT64_FOLLOWS = 27  # 0x1b
-CBOR_VAR_FOLLOWS    = 31  # 0x1f
+CBOR_UINT8_FOLLOWS  = const(24)  # 0x18
+CBOR_UINT16_FOLLOWS = const(25)  # 0x19
+CBOR_UINT32_FOLLOWS = const(26)  # 0x1a
+CBOR_UINT64_FOLLOWS = const(27)  # 0x1b
+CBOR_VAR_FOLLOWS    = const(31)  # 0x1f
 
-CBOR_BREAK  = 0xFF
+CBOR_BREAK  = const(0xFF)
 
-CBOR_FALSE  = (CBOR_7 | 20)
-CBOR_TRUE   = (CBOR_7 | 21)
-CBOR_NULL   = (CBOR_7 | 22)
-CBOR_UNDEFINED   = (CBOR_7 | 23)  # js 'undefined' value
+CBOR_FALSE  = const(CBOR_7 | 20)
+CBOR_TRUE   = const(CBOR_7 | 21)
+CBOR_NULL   = const(CBOR_7 | 22)
+CBOR_UNDEFINED   = const(CBOR_7 | 23)  # js 'undefined' value
 
-CBOR_FLOAT16 = (CBOR_7 | 25)
-CBOR_FLOAT32 = (CBOR_7 | 26)
-CBOR_FLOAT64 = (CBOR_7 | 27)
+CBOR_FLOAT16 = const(CBOR_7 | 25)
+CBOR_FLOAT32 = const(CBOR_7 | 26)
+CBOR_FLOAT64 = const(CBOR_7 | 27)
 
-CBOR_TAG_DATE_STRING = 0 # RFC3339
-CBOR_TAG_DATE_ARRAY = 1 # any number type follows, seconds since 1970-01-01T00:00:00 UTC
-CBOR_TAG_BIGNUM = 2 # big endian byte string follows
-CBOR_TAG_NEGBIGNUM = 3 # big endian byte string follows
-CBOR_TAG_DECIMAL = 4 # [ 10^x exponent, number ]
-CBOR_TAG_BIGFLOAT = 5 # [ 2^x exponent, number ]
-CBOR_TAG_BASE64URL = 21
-CBOR_TAG_BASE64 = 22
-CBOR_TAG_BASE16 = 23
-CBOR_TAG_CBOR = 24 # following byte string is embedded CBOR data
+CBOR_TAG_DATE_STRING = const(0) # RFC3339
+CBOR_TAG_DATE_ARRAY  = const(1) # any number type follows, seconds since 1970-01-01T00:00:00 UTC
+CBOR_TAG_BIGNUM      = const(2) # big endian byte string follows
+CBOR_TAG_NEGBIGNUM   = const(3) # big endian byte string follows
+CBOR_TAG_DECIMAL     = const(4) # [ 10^x exponent, number ]
+CBOR_TAG_BIGFLOAT    = const(5) # [ 2^x exponent, number ]
+CBOR_TAG_BASE64URL   = const(21)
+CBOR_TAG_BASE64      = const(22)
+CBOR_TAG_BASE16      = const(23)
+CBOR_TAG_CBOR        = const(24) # following byte string is embedded CBOR data
 
-CBOR_TAG_URI = 32
-CBOR_TAG_BASE64URL = 33
-CBOR_TAG_BASE64 = 34
-CBOR_TAG_REGEX = 35
-CBOR_TAG_MIME = 36 # following text is MIME message, headers, separators and all
-CBOR_TAG_CBOR_FILEHEADER = 55799 # can open a file with 0xd9d9f7
+CBOR_TAG_URI             = const(32)
+CBOR_TAG_BASE64URL_STR   = const(33)
+CBOR_TAG_BASE64_STR      = const(34)
+CBOR_TAG_REGEX           = const(35)
+CBOR_TAG_MIME            = const(36) # following text is MIME message, headers, separators and all
+CBOR_TAG_CBOR_FILEHEADER = const(55799) # can open a file with 0xd9d9f7
 
 _CBOR_TAG_BIGNUM_BYTES = ustruct.pack('B', CBOR_TAG | CBOR_TAG_BIGNUM)
 
@@ -313,7 +313,7 @@ def _loads_map(fp, limit, depth, returntags, aux, bytes_read):
 def _loads(fp, limit=None, depth=0, returntags=False):
     "return (object, bytes read)"
     if depth > _MAX_DEPTH:
-        raise Exception("hit CBOR loads recursion depth limit")
+        raise Exception("Hit CBOR loads recursion depth limit.")
 
     tb = _read_byte(fp)
 
