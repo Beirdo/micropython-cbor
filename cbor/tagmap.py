@@ -1,6 +1,7 @@
 from .cbor import loads, dumps, load, dump
-from .cbor import Tag, CBOR_TAG_CBOR
+from .cbor import Tag
 
+_CBOR_TAG_CBOR        = const(24) # following byte string is embedded CBOR data
 
 class ClassTag(object):
     '''
@@ -111,19 +112,19 @@ class WrappedCBOR(ClassTag):
 Tag(24L, '\xa1Aa\x83\x01\x02\x03')
 """
     def __init__(self):
-        super(WrappedCBOR, self).__init__(CBOR_TAG_CBOR, None, None, loads)
+        super(WrappedCBOR, self).__init__(_CBOR_TAG_CBOR, None, None, loads)
 
     @staticmethod
     def wrap(ob):
-        return Tag(CBOR_TAG_CBOR, dumps(ob))
+        return Tag(_CBOR_TAG_CBOR, dumps(ob))
 
     @staticmethod
     def dump(ob, fp):
-        return dump(Tag(CBOR_TAG_CBOR, dumps(ob)), fp)
+        return dump(Tag(_CBOR_TAG_CBOR, dumps(ob)), fp)
 
     @staticmethod
     def dumps(ob):
-        return dumps(Tag(CBOR_TAG_CBOR, dumps(ob)))
+        return dumps(Tag(_CBOR_TAG_CBOR, dumps(ob)))
 
 
 class UnknownTagException(BaseException):

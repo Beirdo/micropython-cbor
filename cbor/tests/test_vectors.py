@@ -140,5 +140,6 @@ if __name__ == '__main__':
     try:
         unit_test.test_vectors()
         print('test_vectors(): OK.')
-    except:
+    except Exception as e:
+        print(e)
         print('test_vectors(): NOK.')
