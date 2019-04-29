@@ -204,6 +204,8 @@ def loads(data):
     """
     if data is None:
         raise ValueError("got None for buffer to decode in loads")
+    elif data == b'':
+        raise ValueError("got zero length string loads")
 
     return _loads(BytesIO(data))
 
